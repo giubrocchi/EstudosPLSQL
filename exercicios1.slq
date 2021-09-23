@@ -1,0 +1,138 @@
+SET SERVEROUTPUT ON;
+
+-- Exercício 1 --
+
+create table FUNCIONARIOS(
+MATRICULA numeric(10) primary key,
+NOME varchar2(200) not null,
+SALARIO numeric(8,2) not null
+);
+
+insert into FUNCIONARIOS (MATRICULA, NOME, SALARIO) values (123, 'Kimberly Jones', 2300.00);
+insert into FUNCIONARIOS (MATRICULA, NOME, SALARIO) values (987, 'Steve Rogers', 5680.50);
+insert into FUNCIONARIOS (MATRICULA, NOME, SALARIO) values (465, 'Julia Peraltta', 1250.30);
+
+create or replace FUNCTION folha_pagamento return FLOAT
+IS
+    SOMA FLOAT;
+BEGIN
+    SOMA := 0;
+    FOR x in (select SALARIO from FUNCIONARIOS) LOOP
+        SOMA := SOMA + x.SALARIO;
+    END LOOP;
+    return SOMA;
+END;
+/
+
+select folha_pagamento from dual;
+
+-- Exercício 2 --
+
+create or replace PROCEDURE aplicar_reajuste_em_massa (REAJUSTE FLOAT)
+IS
+    PORCENT FLOAT;
+BEGIN
+    PORCENT := (100 - REAJUSTE)/100;
+    update FUNCIONARIOS set SALARIO = SALARIO*PORCENT;
+END;
+/
+
+EXEC aplicar_reajuste_em_massa (10);
+
+-- Exercício 3 --
+
+create or replace FUNCTION menor_num (a INTEGER, b INTEGER, c INTEGER) return INTEGER
+IS
+    MENOR INTEGER;
+BEGIN
+    MENOR := a;
+    IF (b < MENOR) THEN
+        MENOR := b;
+    END IF;
+    IF (c < MENOR) THEN
+        MENOR := c;
+    END IF;
+    return MENOR;
+END;
+/
+
+select menor_num(0, -2, 1) from dual;
+
+-- Exercício 4 --
+
+create or replace FUNCTION validar_cartao (numero INTEGER) return VARCHAR2
+IS
+    VALIDO VARCHAR2(50);
+    DIGIT INTEGER := 0;
+    PRIMEIRO INTEGER;
+    SEGUNDO INTEGER;
+    CARTAO INTEGER;
+BEGIN
+    CARTAO := numero;
+    WHILE CARTAO > 0 LOOP
+        IF CARTAO < 100 and CARTAO > 9 THEN
+            SEGUNDO := MOD(CARTAO, 10);
+        END IF;
+        IF CARTAO < 10 THEN
+            PRIMEIRO := MOD(CARTAO, 10);
+        END IF;
+        CARTAO := trunc(CARTAO/10);
+        DIGIT := DIGIT + 1;
+    END LOOP;
+    
+    IF PRIMEIRO = 4 THEN
+        IF DIGIT = 13 OR DIGIT = 16 THEN
+            VALIDO := 'VISA VALIDO';
+        ELSE
+            VALIDO := 'VISA INVALIDO';
+        END IF;
+    
+    ELSIF PRIMEIRO = 5 THEN
+        IF DIGIT = 16 THEN
+            VALIDO := 'MASTERCARD VALIDO';
+        ELSE
+            VALIDO := 'MASTERCARD INVALIDO';
+        END IF;
+    
+    ELSIF PRIMEIRO = 3 THEN
+        IF SEGUNDO = 4 OR SEGUNDO = 7 THEN
+            IF DIGIT = 15 THEN
+                VALIDO := 'AMEX VALIDO';
+            ELSE
+                VALIDO := 'AMEX INVALIDO';
+            END IF;
+        ELSE
+            VALIDO := 'AMEX INVALIDO';
+        END IF;
+    
+    ELSE
+        VALIDO := 'NAO IDENTIFICADO';
+    END IF;
+    return VALIDO;
+END;
+/
+
+select validar_cartao(347865870891671) from dual;
+select validar_cartao(5478658708916718) from dual;
+select validar_cartao(547865870891671) from dual;
+select validar_cartao(4786587089167107) from dual;
+select validar_cartao(91671) from dual;
+
+-- Exercício 5 --
+
+create table AUDIT_SALARIOS(
+DATA_MODIFICACAO date,
+VALOR_ANTERIOR numeric(8,2),
+VALOR_APLICADO numeric(8,2)
+);
+
+create or replace TRIGGER auditoria
+AFTER update on FUNCIONARIOS
+FOR each row
+BEGIN
+    insert into AUDIT_SALARIOS (DATA_MODIFICACAO, VALOR_ANTERIOR, VALOR_APLICADO) values (sysdate, :old.SALARIO, :new.SALARIO);
+END;
+
+update FUNCIONARIOS set SALARIO = 2000 where MATRICULA = 123;
+select * from FUNCIONARIOS;
+select * from AUDIT_SALARIOS;
